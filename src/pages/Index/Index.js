@@ -1,6 +1,7 @@
 import { React, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import styles from './Index.module.css';
+import { Link } from 'react-router-dom';
 
 // Custom components
 import Header from '../../components/Header/Header';
@@ -16,54 +17,30 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusSquare } from '@fortawesome/free-solid-svg-icons';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import { faPen } from '@fortawesome/free-solid-svg-icons';
+import { faEye } from '@fortawesome/free-solid-svg-icons';
+
+// BooksService with cient axios
+import BooksService from '../../services/BooksService';
 
 const Index = () => {
   function handleBooks() {
-    setBooks([
-      {
-        'id': 1,
-        'title': 'La hojarasca',
-        'description': 'Good one',
-        'author': 'Gabo'
-      },
-      {
-        'id': 2,
-        'title': 'El coronel no tiene quien le escriba',
-        'description': 'Interesting',
-        'author': 'Gabo'
-      },
-      {
-        'id': 3,
-        'title': 'El coronel no tiene quien le escriba',
-        'description': 'Interesting',
-        'author': 'Gabo'
-      }
-    ])
+    document.title = "Home";
 
-    setSelectedBook({
-      'id': 3,
-      'title': 'El coronel no tiene quien le escriba',
-      'description': 'Interesting',
-      'author': 'Gabo'
-    });
+    BooksService.getBooks()
+      .then(res => {
+        setBooks(res.data.books);
+      })
+      .catch(err => {
+        alert('There was an error while trying to get the data from the server');
+        console.log(err);
+      });
   };
 
   useEffect(handleBooks, []);
 
   const [books, setBooks] = useState([]);
-  const [newBook, setNewBook] = useState({
-    'id': 1,
-    'title': 'La hojarasca',
-    'description': 'Good one',
-    'author': 'Gabo'
-  });
-  const [selectedBook, setSelectedBook] = useState({
-    'id': 1,
-    'title': 'La hojarasca',
-    'description': 'Good one',
-    'author': 'Gabo'
-  });
-  const [newId, setNewId] = useState('');
+  const [newBook, setNewBook] = useState({});
+  const [selectedBook, setSelectedBook] = useState({});
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newAuthor, setNewAuthor] = useState('');
@@ -71,10 +48,6 @@ const Index = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-
-  const handleNewId = (e) => {
-    setNewId(e.target.value);
-  };
 
   const handleNewTitle = (e) => {
     setNewTitle(e.target.value);
@@ -94,7 +67,6 @@ const Index = () => {
 
   const handleSelectedBook = (selectedBook) => {
     setSelectedBook(selectedBook);
-    setNewId(selectedBook.id);
     setNewTitle(selectedBook.title);
     setNewDescription(selectedBook.description);
     setNewAuthor(selectedBook.author);
@@ -114,66 +86,57 @@ const Index = () => {
     setShowDelete(!showDelete)
   };
 
-  const addNewBook = (title, description, author, id = null) => {
-    let newBook = {};
-
-    // Añadiendo id como opcional
-    if (id) {
-      newBook = {
-        'id': id,
-        'title': title,
-        'description': description,
-        'author': author
-      };
-    } else {
-      let lastId = 0;
-
-      books.forEach((book) => {
-        if (lastId < book.id) {
-          lastId = book.id;
-        }
-      })
-
-      lastId++;
-
-      newBook = {
-        'id': lastId,
-        'title': title,
-        'description': description,
-        'author': author
-      };
-    }
+  const addNewBook = (id, title, description, author) => {
+    let newBook = {
+      'id': id,
+      'title': title,
+      'description': description,
+      'author': author
+    };
 
     return newBook;
   }
 
-  const addBook = (e) => {
+  const addBook = () => {
     let booksTemporal = books;
-    booksTemporal.push(addNewBook(newTitle, newDescription, newAuthor));
-    handleAdd();
+    BooksService.addBook(newTitle, newDescription, newAuthor)
+      .then(res => {
+        alert('The book was created succesfully!');
+        let lastId = res.data.book;
+        booksTemporal.push(addNewBook(lastId, newTitle, newDescription, newAuthor));
+        handleAdd();
+      })
+
+      .catch(err => {
+        alert('The book could not be created');
+      })
   }
 
-  const editBook = (e) => {
+  const editBook = () => {
     let id = selectedBook.id;
     let booksTemporal = books;
 
     // Para efectos del arreglo
     books.forEach((book, index) => {
       if (book.id == id) {
-        if (newId == '') {
-          booksTemporal[index] = addNewBook(newTitle, newDescription, newAuthor);
-        } else {
-          booksTemporal[index] = addNewBook(newTitle, newDescription, newAuthor, id = newId);
-        }
+        BooksService.editBook(id, newTitle, newDescription, newAuthor)
+          .then(res => {
+            booksTemporal[index] = addNewBook(id, newTitle, newDescription, newAuthor);
+            alert('The book was updated succesfully!');
+            setBooks(booksTemporal);
+            handleEdit({});
+            setNewTitle('');
+            setNewDescription('');
+            setNewAuthor('');
+          })
+
+          .catch(err => {
+            alert('There was an error while trying to update the book');
+            console.log(err);
+          })
+
       }
     })
-
-    setBooks(booksTemporal);
-    handleEdit(booksTemporal[0]);
-    setNewId('');
-    setNewTitle('');
-    setNewDescription('');
-    setNewAuthor('');
   }
 
   const deleteBook = () => {
@@ -183,23 +146,21 @@ const Index = () => {
     // Para efectos del arreglo
     books.forEach((book, index) => {
       if (book.id == id) {
+
+        BooksService.deleteBook(id)
+          .then(res => {
+            if (res.data.result) {
+              alert('The book have been removed succesfully!');
+            } else {
+              alert('The book was not removed');
+            }
+          })
+
         booksTemporal.splice(index, 1);
+        setBooks(booksTemporal.length == 0 ? [] : booksTemporal);
+        handleDelete({});
       }
     })
-
-
-    if (booksTemporal.length == 0) {
-      setBooks(booksTemporal.length == 0 ? [] : booksTemporal);
-      handleDelete({
-        'id': 1,
-        'title': 'La hojarasca',
-        'description': 'Good one',
-        'author': 'Gabo'
-      });
-    } else {
-      setBooks(booksTemporal);
-      handleDelete(booksTemporal[0]);
-    }
 
   }
 
@@ -232,7 +193,10 @@ const Index = () => {
               <div key={index} className="row text-center">
                 <div className={"col " + styles.ThemedGridCol}>
                   <FontAwesomeIcon onClick={() => handleEdit(book)} icon={faPen} className={"me-2 text-warning display-5 " + styles.PointerHover} />
-                  <FontAwesomeIcon onClick={() => handleDelete(book)} icon={faTrash} className={"text-danger display-5 " + styles.PointerHover} />
+                  <FontAwesomeIcon onClick={() => handleDelete(book)} icon={faTrash} className={"me-2 text-danger display-5 " + styles.PointerHover} />
+                  <Link to={`/${book.id}`}>
+                    <FontAwesomeIcon icon={faEye} className={"text-success display-5 " + styles.PointerHover} />
+                  </Link>
                 </div>
                 <div className={"col " + styles.ThemedGridCol + " d-flex justify-content-center align-items-center"}>
                   <h5>{book.id}</h5>
@@ -289,11 +253,6 @@ const Index = () => {
 
           <Modal.Body>
             <Form>
-              <Form.Group className="mb-3" controlId="formBasicText">
-                <Form.Label>Id</Form.Label>
-                <Form.Control type="text" placeholder="Ingresa el id" value={newId} onChange={handleNewId} />
-              </Form.Group>
-
               <Form.Group className="mb-3" controlId="formBasicText">
                 <Form.Label>Título</Form.Label>
                 <Form.Control type="text" placeholder="Ingresa el título" value={newTitle} onChange={handleNewTitle} />

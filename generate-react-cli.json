@@ -5,7 +5,7 @@
   "testLibrary": "None",
   "component": {
     "page": {
-      "path": "src/page",
+      "path": "src/pages",
       "withStyle": true,
       "withTest": false,
       "withStory": false,

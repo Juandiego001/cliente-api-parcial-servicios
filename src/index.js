@@ -10,13 +10,19 @@ import reportWebVitals from './reportWebVitals';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Components
-import Index from '../src/page/Index/Index';
+import Index from '../src/pages/Index/Index';
+import Book from './pages/Book/Book';
+import { loader as bookLoader } from './pages/Book/Book';
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <Index />,
   },
+  {
+    path: "/:id",
+    element: <Book />,
+  }
 ]);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
